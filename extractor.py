@@ -1,12 +1,7 @@
 import pdfplumber
 import pytesseract
 from PIL import Image
-import openai
-import os
-from dotenv import load_dotenv
-
-load_dotenv()
-openai.api_key = os.getenv("OPENAI_API_KEY")
+import requests
 
 def extract_text_from_pdf(file):
     text = ""
@@ -17,20 +12,16 @@ def extract_text_from_pdf(file):
 
 def extract_text_from_image(image_file):
     image = Image.open(image_file)
-    text = pytesseract.image_to_string(image)
-    return text
+    return pytesseract.image_to_string(image)
 
 def extract_inci_from_text(text):
     prompt = (
-        "Voici le contenu d’un document fournisseur. "
-        "Extrais tous les noms INCI ou les noms chimiques des matières premières présentes dans ce texte. "
-        "Liste uniquement les noms, séparés par des virgules."
+        "Voici un texte fournisseur. Liste uniquement les noms INCI ou noms chimiques, séparés par des virgules:\n\n" +
+        text
     )
-    response = openai.ChatCompletion.create(
-        model="gpt-4",
-        messages=[
-            {"role": "user", "content": prompt + "\n\n" + text}
-        ]
+    resp = requests.post(
+        "http://localhost:11434/api/generate",
+        json={"model": "mistral", "prompt": prompt, "stream": False}
     )
-    content = response.choices[0].message.content
-    return [inci.strip() for inci in content.split(",") if inci.strip()]
+    data = resp.json()
+    return [inci.strip() for inci in data["response"].split(",") if inci.strip()]
